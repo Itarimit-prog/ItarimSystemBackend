@@ -6,6 +6,9 @@ from database import get_db
 import db as tasks_db
 import profile_db
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -47,13 +50,22 @@ def update_task(task_id: str, payload: TaskUpdate, session: Session = Depends(ge
     result = updated.model_dump()
     result["xp_result"] = None
 
-    # XP начисляется только когда статус меняется на "done"
-    if (payload.status == "done"
-            and old_task
-            and old_task.status != "done"):
-        stat_key = _TASK_STAT_MAP.get(updated.task_type)
-        xp_data = profile_db.award_xp(session, 15, stat_key)
-        result["xp_result"] = xp_data
+    stat_key = _TASK_STAT_MAP.get(updated.task_type)
+    was_done = bool(old_task and old_task.status == "done")
+    is_done = updated.status == "done"
+
+    # Задача уже сохранена выше — сбой начисления XP не должен превращать
+    # успешное обновление задачи в ошибку 500 для пользователя
+    try:
+        if is_done and not was_done:
+            # Статус стал "done" — начисляем XP
+            result["xp_result"] = profile_db.award_xp(session, 15, stat_key)
+        elif was_done and not is_done:
+            # Статус ушёл с "done" — откатываем ранее начисленный XP,
+            # иначе toggle done→todo→done бесконечно фармит очки
+            profile_db.revoke_xp(session, 15, stat_key)
+    except Exception:
+        logger.exception("Не удалось начислить/откатить XP для задачи %s", task_id)
 
     return result
 

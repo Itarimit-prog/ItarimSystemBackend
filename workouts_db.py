@@ -64,10 +64,9 @@ def update_workout(db: Session, workout_id: str, updates: dict) -> Workout | Non
         return None
     
     for key, value in updates.items():
-        if value is not None:
-            if key == 'exercises':
-                value = json.dumps(value)
-            setattr(db_workout, key, value)
+        if key == 'exercises' and value is not None:
+            value = json.dumps(value)
+        setattr(db_workout, key, value)
     
     db.commit()
     db.refresh(db_workout)
@@ -153,10 +152,9 @@ def update_exercise(db: Session, exercise_id: str, updates: dict) -> Exercise | 
         return None
     
     for key, value in updates.items():
-        if value is not None:
-            if key == 'muscle_groups':
-                value = json.dumps(value)
-            setattr(db_exercise, key, value)
+        if key == 'muscle_groups' and value is not None:
+            value = json.dumps(value)
+        setattr(db_exercise, key, value)
     
     db.commit()
     db.refresh(db_exercise)

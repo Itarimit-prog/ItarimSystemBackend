@@ -6,6 +6,9 @@ from database import get_db
 import habits_db
 import profile_db
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/habits", tags=["habits"])
 
@@ -23,7 +26,7 @@ def create_habit(payload: HabitCreate, db: Session = Depends(get_db)):
 
 @router.patch("/{habit_id}", response_model=Habit)
 def update_habit(habit_id: str, payload: HabitUpdate, db: Session = Depends(get_db)):
-    updated = habits_db.update_habit(db, habit_id, payload.model_dump(exclude_none=True))
+    updated = habits_db.update_habit(db, habit_id, payload.model_dump(exclude_unset=True))
     if not updated:
         raise HTTPException(404, "Привычка не найдена")
     return updated
@@ -44,16 +47,23 @@ def get_checks(habit_id: str, date: str, db: Session = Depends(get_db)):
 @router.post("/{habit_id}/checks", status_code=201)
 def add_check(habit_id: str, payload: CheckCreate, db: Session = Depends(get_db)):
     check = Check(id=str(uuid.uuid4()), **payload.model_dump())
-    result_check = habits_db.add_check(db, check)
+    result_check, created = habits_db.add_check(db, check)
 
     result = result_check.model_dump()
     result["xp_result"] = None
 
-    # Хорошая привычка → +10 XP к здоровью
-    habit = habits_db.get_habit(db, habit_id)
-    if habit and habit.kind == "good":
-        xp_data = profile_db.award_xp(db, 10, "health")
-        result["xp_result"] = xp_data
+    # Хорошая привычка → +10 XP к здоровью, но только за реально новый чек —
+    # повторный POST на уже отмеченный (habit_id, date, check_index) не должен фармить XP.
+    # Чек уже сохранён выше — сбой начисления XP не должен превращать успешную
+    # отметку привычки в ошибку 500 для пользователя.
+    if created:
+        try:
+            habit = habits_db.get_habit(db, habit_id)
+            if habit and habit.kind == "good":
+                xp_data = profile_db.award_xp(db, 10, "health")
+                result["xp_result"] = xp_data
+        except Exception:
+            logger.exception("Не удалось начислить XP за чек привычки %s", habit_id)
 
     return result
 
@@ -63,9 +73,12 @@ def remove_check(habit_id: str, date: str, check_index: int = 0, db: Session = D
     habits_db.remove_check(db, habit_id, date, check_index)
 
     # Хорошая привычка → отнимаем XP (откат)
-    habit = habits_db.get_habit(db, habit_id)
-    if habit and habit.kind == "good":
-        profile_db.revoke_xp(db, 10, "health")
+    try:
+        habit = habits_db.get_habit(db, habit_id)
+        if habit and habit.kind == "good":
+            profile_db.revoke_xp(db, 10, "health")
+    except Exception:
+        logger.exception("Не удалось откатить XP за чек привычки %s", habit_id)
 
 
 # Relapses

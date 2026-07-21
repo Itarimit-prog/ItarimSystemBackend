@@ -72,10 +72,9 @@ def update_column(db: Session, col_id: str, updates: dict) -> KanbanColumn | Non
         return None
     
     for key, value in updates.items():
-        if value is not None:
-            if key == 'is_completed_column':
-                value = 1 if value else 0
-            setattr(db_col, key, value)
+        if key == 'is_completed_column':
+            value = 1 if value else 0
+        setattr(db_col, key, value)
     
     db.commit()
     db.refresh(db_col)
@@ -134,10 +133,9 @@ def update_card(db: Session, card_id: str, updates: dict) -> KanbanCard | None:
         return None
     
     for key, value in updates.items():
-        if value is not None:
-            if key == 'completed':
-                value = 1 if value else 0
-            setattr(db_card, key, value)
+        if key == 'completed':
+            value = 1 if value else 0
+        setattr(db_card, key, value)
     
     db.commit()
     db.refresh(db_card)

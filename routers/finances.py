@@ -34,7 +34,7 @@ def create_transaction(payload: TransactionCreate, db: Session = Depends(get_db)
 
 @router.put("/transactions/{txn_id}", response_model=Transaction)
 def update_transaction(txn_id: str, payload: TransactionUpdate, db: Session = Depends(get_db)):
-    updated = finance_db.update_transaction(db, txn_id, payload.model_dump(exclude_none=True))
+    updated = finance_db.update_transaction(db, txn_id, payload.model_dump(exclude_unset=True))
     if not updated:
         raise HTTPException(status_code=404, detail="Транзакция не найдена")
     return updated
@@ -61,7 +61,7 @@ def create_debt(payload: DebtCreate, db: Session = Depends(get_db)):
 
 @router.put("/debts/{debt_id}", response_model=Debt)
 def update_debt(debt_id: str, payload: DebtUpdate, db: Session = Depends(get_db)):
-    updated = finance_db.update_debt(db, debt_id, payload.model_dump(exclude_none=True))
+    updated = finance_db.update_debt(db, debt_id, payload.model_dump(exclude_unset=True))
     if not updated:
         raise HTTPException(status_code=404, detail="Долг не найден")
     return updated

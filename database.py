@@ -191,5 +191,19 @@ def _add_missing_columns():
                     conn.execute(text(f"ALTER TABLE {quote('exercises')} ADD COLUMN sets INTEGER"))
                 logger.info("Добавлена колонка sets в таблицу exercises")
 
+        # transactions/debts — amount: Float -> Numeric(12,2), чтобы не копилась
+        # погрешность округления при суммировании денег (только Postgres, SQLite не типизирован строго)
+        if dialect == 'postgresql':
+            for table in ('transactions', 'debts'):
+                if table in inspector.get_table_names():
+                    cols = inspector.get_columns(table)
+                    amount_col = next((c for c in cols if c['name'] == 'amount'), None)
+                    if amount_col and 'DOUBLE' in str(amount_col.get('type', '')).upper():
+                        with engine.begin() as conn:
+                            conn.execute(text(
+                                f"ALTER TABLE {quote(table)} ALTER COLUMN amount TYPE NUMERIC(12,2)"
+                            ))
+                        logger.info(f"Колонка amount в таблице {table} переведена на NUMERIC(12,2)")
+
     except Exception as e:
         logger.warning(f"Не удалось добавить недостающие колонки: {e}")

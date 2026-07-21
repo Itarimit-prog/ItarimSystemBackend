@@ -17,6 +17,9 @@ from profile_models import (
 )
 from profile_achievements import get_all_achievement_defs, check_all_achievements
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ── Шесть характеристик ──
@@ -135,11 +138,12 @@ def get_profile(db: Session) -> PlayerProfile:
 
 # ── Начисление XP ──
 
-def award_xp(db: Session, amount: int, stat_key: str | None = None, commit: bool = True) -> dict:
+def award_xp(db: Session, amount: int, stat_key: str | None = None, commit: bool = True, stat_amount: int | None = None) -> dict:
     """
     Начисляет XP игроку.
     amount — общий XP
-    stat_key — если указана, ещё начисляет amount XP в эту характеристику
+    stat_key — если указана, ещё начисляет XP в эту характеристику
+    stat_amount — сколько именно XP начислить в характеристику (по умолчанию = amount)
     commit — если False, не делает db.commit() (для использования внутри транзакции)
     Возвращает dict с информацией о изменении уровня.
     """
@@ -157,9 +161,10 @@ def award_xp(db: Session, amount: int, stat_key: str | None = None, commit: bool
     if stat_key:
         stat = db.query(StatModel).filter(StatModel.stat_key == stat_key).first()
         if stat:
-            stat.xp += amount
+            gained = stat_amount if stat_amount is not None else amount
+            stat.xp += gained
             stat.level = _stat_level_from_xp(stat.xp)
-            stat_xp_gained = amount
+            stat_xp_gained = gained
 
     if commit:
         db.commit()
@@ -263,19 +268,22 @@ def check_and_unlock_achievements(db: Session) -> list[AchievementUnlockEvent]:
         if existing:
             continue
 
-        # Сохраняем в БД (без commit — делаем один общий в конце)
-        ua = UnlockedAchievementModel(
-            id=str(uuid.uuid4()),
-            achievement_code=ach["code"],
-            unlocked_at=datetime.now().isoformat(),
-        )
-        db.add(ua)
-
-        # Начисляем XP (без commit)
+        # SAVEPOINT — сбой одной ачивки откатывает только её,
+        # а не весь batch уже собранных в этом проходе разблокировок
         try:
-            xp_result = award_xp(db, ach["xp_reward"], ach.get("stat_key"), commit=False)
+            with db.begin_nested():
+                ua = UnlockedAchievementModel(
+                    id=str(uuid.uuid4()),
+                    achievement_code=ach["code"],
+                    unlocked_at=datetime.now().isoformat(),
+                )
+                db.add(ua)
+                xp_result = award_xp(
+                    db, ach["xp_reward"], ach.get("stat_key"), commit=False,
+                    stat_amount=ach.get("stat_xp", 0),
+                )
         except Exception:
-            db.rollback()
+            logger.exception("Не удалось разблокировать достижение %s", ach.get("code"))
             continue
 
         events.append(AchievementUnlockEvent(

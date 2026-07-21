@@ -6,9 +6,13 @@
 - check(db) -> bool: функция проверки
 """
 
+import logging
+
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+logger = logging.getLogger(__name__)
 
 
 # ════════════════════════════════════════
@@ -504,5 +508,6 @@ def check_all_achievements(db: Session, already_unlocked: set[str]) -> list[dict
             if ach["check"](db):
                 new_unlocks.append({k: v for k, v in ach.items() if k != "check"})
         except Exception:
+            logger.exception("Ошибка проверки достижения %s", ach.get("code"))
             continue
     return new_unlocks

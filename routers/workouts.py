@@ -9,6 +9,9 @@ from database import get_db
 import workouts_db
 import profile_db
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/workouts", tags=["workouts"])
 
@@ -81,16 +84,20 @@ def create_workout(payload: WorkoutCreate, db: Session = Depends(get_db)):
     created = workouts_db.create_workout(db, workout)
 
     result = created.model_dump()
-    # Тренировка → +25 XP к силе
-    xp_data = profile_db.award_xp(db, 25, "strength")
-    result["xp_result"] = xp_data
+    result["xp_result"] = None
+    # Тренировка уже сохранена выше — сбой начисления XP не должен превращать
+    # успешное сохранение тренировки в ошибку 500 для пользователя
+    try:
+        result["xp_result"] = profile_db.award_xp(db, 25, "strength")
+    except Exception:
+        logger.exception("Не удалось начислить XP за тренировку %s", result.get("id"))
 
     return result
 
 
 @router.put("/{workout_id}", response_model=Workout)
 def update_workout(workout_id: str, payload: WorkoutUpdate, db: Session = Depends(get_db)):
-    updated = workouts_db.update_workout(db, workout_id, payload.model_dump(exclude_none=True))
+    updated = workouts_db.update_workout(db, workout_id, payload.model_dump(exclude_unset=True))
     if not updated:
         raise HTTPException(status_code=404, detail="Тренировка не найдена")
     return updated

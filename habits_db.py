@@ -67,10 +67,9 @@ def update_habit(db: Session, habit_id: str, updates: dict) -> Habit | None:
         return None
     
     for key, value in updates.items():
-        if value is not None:
-            if key == 'freq_days':
-                value = json.dumps(value)
-            setattr(db_habit, key, value)
+        if key == 'freq_days' and value is not None:
+            value = json.dumps(value)
+        setattr(db_habit, key, value)
     
     db.commit()
     db.refresh(db_habit)
@@ -117,7 +116,16 @@ def get_checks_by_date(db: Session, habit_id: str, date: str) -> list[Check]:
     
     return [Check(id=c.id, habit_id=c.habit_id, date=c.date, check_index=c.check_index) for c in checks]
 
-def add_check(db: Session, check: Check) -> Check:
+def add_check(db: Session, check: Check) -> tuple[Check, bool]:
+    """Возвращает (check, created) — created=False если такой чек уже существовал (без дублей и повторного XP)."""
+    existing = db.query(CheckModel).filter(
+        CheckModel.habit_id == check.habit_id,
+        CheckModel.date == check.date,
+        CheckModel.check_index == check.check_index
+    ).first()
+    if existing:
+        return Check(id=existing.id, habit_id=existing.habit_id, date=existing.date, check_index=existing.check_index), False
+
     db_check = CheckModel(
         id=check.id,
         habit_id=check.habit_id,
@@ -127,7 +135,7 @@ def add_check(db: Session, check: Check) -> Check:
     db.add(db_check)
     db.commit()
     db.refresh(db_check)
-    return check
+    return check, True
 
 def remove_check(db: Session, habit_id: str, date: str, check_index: int) -> bool:
     db_check = db.query(CheckModel).filter(

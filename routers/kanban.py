@@ -40,7 +40,7 @@ def create_column(payload: ColumnCreate, db: Session = Depends(get_db)):
 
 @router.patch("/columns/{col_id}", response_model=KanbanColumn)
 def update_column(col_id: str, payload: ColumnUpdate, db: Session = Depends(get_db)):
-    updated = kanban_db.update_column(db, col_id, payload.model_dump(exclude_none=True))
+    updated = kanban_db.update_column(db, col_id, payload.model_dump(exclude_unset=True))
     if not updated:
         raise HTTPException(404, "Колонка не найдена")
     return updated
@@ -71,7 +71,7 @@ def move_card(payload: MoveCardRequest, db: Session = Depends(get_db)):
 
 @router.patch("/cards/{card_id}", response_model=KanbanCard)
 def update_card(card_id: str, payload: CardUpdate, db: Session = Depends(get_db)):
-    updated = kanban_db.update_card(db, card_id, payload.model_dump(exclude_none=True))
+    updated = kanban_db.update_card(db, card_id, payload.model_dump(exclude_unset=True))
     if not updated:
         raise HTTPException(404, "Карточка не найдена")
     return updated

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, String, Float, Text, Enum as SQLEnum
+from sqlalchemy import Column, String, Numeric, Text, Enum as SQLEnum
 from database import Base
 from typing import Optional, Literal
 from enum import Enum
@@ -31,7 +31,7 @@ class TransactionModel(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     description = Column(String(200), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(12, 2), nullable=False)
     transaction_type = Column(SQLEnum(TransactionType), nullable=False)
     category = Column(SQLEnum(TransactionCategory), nullable=False)
     date = Column(String(10), nullable=False)  # ISO YYYY-MM-DD
@@ -53,7 +53,7 @@ class DebtModel(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(100), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(12, 2), nullable=False)
     direction = Column(SQLEnum(DebtDirection), nullable=False)
     note = Column(Text, nullable=True)
     due_date = Column(String(10), nullable=True)  # ISO YYYY-MM-DD

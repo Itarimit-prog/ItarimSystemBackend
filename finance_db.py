@@ -139,8 +139,7 @@ def update_transaction(db: Session, txn_id: str, updates: dict) -> Transaction |
         return None
     
     for key, value in updates.items():
-        if value is not None:
-            setattr(db_txn, key, value)
+        setattr(db_txn, key, value)
     
     db.commit()
     db.refresh(db_txn)
@@ -222,8 +221,7 @@ def update_debt(db: Session, debt_id: str, updates: dict) -> Debt | None:
         return None
     
     for key, value in updates.items():
-        if value is not None:
-            setattr(db_debt, key, value)
+        setattr(db_debt, key, value)
     
     db.commit()
     db.refresh(db_debt)

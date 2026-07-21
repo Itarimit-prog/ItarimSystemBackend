@@ -4,11 +4,19 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from contextlib import asynccontextmanager
+from sqlalchemy.orm import Session
 from routers import tasks, templates, kanban, habits, workouts, finances, profile
-from database import engine, init_db, SessionLocal, DATABASE_URL
+from database import engine, init_db, get_db, SessionLocal, DATABASE_URL
 from auth import verify_api_key
 import db, kanban_db, habits_db, workouts_db, finance_db, profile_db
 import logging
+
+from models import TaskModel, TemplateModel
+from kanban_models import BoardModel, KanbanColumnModel, KanbanCardModel
+from habits_models import HabitModel, CheckModel, RelapseModel
+from workouts_models import WorkoutModel, ExerciseModel, UserProfileModel
+from finance_models import TransactionModel, DebtModel
+from profile_models import PlayerModel, StatModel, UnlockedAchievementModel
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -41,6 +49,27 @@ app.include_router(habits.router, dependencies=_auth)
 app.include_router(workouts.router, dependencies=_auth)
 app.include_router(finances.router, dependencies=_auth)
 app.include_router(profile.router, dependencies=_auth)
+
+
+@app.post("/reset-all", dependencies=_auth)
+def reset_all(session: Session = Depends(get_db)):
+    """
+    Полный сброс приложения до заводских настроек: удаляет ВСЕ пользовательские
+    данные во всех модулях (задачи, шаблоны, канбан, привычки, тренировки,
+    финансы, профиль/XP/достижения). Каталог определений достижений не трогаем —
+    он пересоздастся init_player() при следующем обращении к профилю.
+    """
+    for model in (
+        TaskModel, TemplateModel,
+        KanbanCardModel, KanbanColumnModel, BoardModel,
+        CheckModel, RelapseModel, HabitModel,
+        WorkoutModel, ExerciseModel, UserProfileModel,
+        TransactionModel, DebtModel,
+        UnlockedAchievementModel, StatModel, PlayerModel,
+    ):
+        session.query(model).delete()
+    session.commit()
+    return {"status": "ok"}
 
 
 @app.get("/health")
