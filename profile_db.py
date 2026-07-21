@@ -87,10 +87,14 @@ def init_player(db: Session) -> None:
                 level=1
             ))
 
-    # Засеваем справочник достижений
-    existing_ach = db.query(AchievementDefModel).first()
-    if not existing_ach:
-        for ach_def in get_all_achievement_defs():
+    # Синхронизируем справочник достижений с текущим кодом.
+    # ВАЖНО: раньше это делалось только один раз ("если таблица пустая"),
+    # из-за чего при добавлении новых достижений в код справочник
+    # молча отставал — уже разблокированные ачивки переставали находить
+    # свою запись в AchievementDefModel и пропадали из профиля.
+    existing_codes = {row[0] for row in db.query(AchievementDefModel.code).all()}
+    for ach_def in get_all_achievement_defs():
+        if ach_def["code"] not in existing_codes:
             db.add(AchievementDefModel(
                 id=str(uuid.uuid4()),
                 code=ach_def["code"],
