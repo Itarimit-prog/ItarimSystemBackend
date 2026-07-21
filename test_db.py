@@ -2,17 +2,15 @@
 """Проверка подключения к Supabase"""
 
 try:
+    import os
     import psycopg2
-    
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     print("Подключение к Supabase...")
-    conn = psycopg2.connect(
-        dbname='postgres',
-        user='postgres.bsngzqmnzdjnjhnliqma',
-        password='CWyy4MdjgXhpdxo5',
-        host='aws-1-eu-central-1.pooler.supabase.com',
-        port='6543'
-    )
-    
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+
     print("✅ Connected!")
     
     # Проверим версию

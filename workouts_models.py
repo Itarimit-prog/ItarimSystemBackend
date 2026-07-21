@@ -30,6 +30,7 @@ class ExerciseModel(Base):
     muscle_groups = Column(String, nullable=False)  # JSON array
     max_weight = Column(Float, nullable=True)
     max_reps = Column(Integer, nullable=True)
+    sets = Column(Integer, nullable=True)
 
 
 class UserProfileModel(Base):
@@ -75,6 +76,7 @@ class ExerciseBase(BaseModel):
     muscle_groups: List[str]
     max_weight: Optional[float] = None
     max_reps: Optional[int] = None
+    sets: Optional[int] = None
 
 
 class Exercise(ExerciseBase):

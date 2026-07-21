@@ -181,6 +181,15 @@ def _add_missing_columns():
                 with engine.begin() as conn:
                     conn.execute(text(f"ALTER TABLE {quote('exercises')} ADD COLUMN max_reps INTEGER"))
                 logger.info("Добавлена колонка max_reps в таблицу exercises")
-                
+
+        # exercises table — sets
+        if 'exercises' in inspector.get_table_names():
+            cols = inspector.get_columns('exercises')
+            col_names = [c['name'] for c in cols]
+            if 'sets' not in col_names:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE {quote('exercises')} ADD COLUMN sets INTEGER"))
+                logger.info("Добавлена колонка sets в таблицу exercises")
+
     except Exception as e:
         logger.warning(f"Не удалось добавить недостающие колонки: {e}")

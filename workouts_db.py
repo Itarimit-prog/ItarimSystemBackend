@@ -106,7 +106,8 @@ def get_all_exercises(db: Session) -> list[Exercise]:
             exercise_type=e.exercise_type,
             muscle_groups=muscle_groups,
             max_weight=e.max_weight,
-            max_reps=e.max_reps
+            max_reps=e.max_reps,
+            sets=e.sets
         ))
     return result
 
@@ -124,7 +125,8 @@ def get_exercise(db: Session, exercise_id: str) -> Exercise | None:
         exercise_type=e.exercise_type,
         muscle_groups=muscle_groups,
         max_weight=e.max_weight,
-        max_reps=e.max_reps
+        max_reps=e.max_reps,
+        sets=e.sets
     )
 
 
@@ -136,7 +138,8 @@ def create_exercise(db: Session, exercise: Exercise) -> Exercise:
         exercise_type=exercise.exercise_type,
         muscle_groups=json.dumps(exercise.muscle_groups),
         max_weight=exercise.max_weight,
-        max_reps=exercise.max_reps
+        max_reps=exercise.max_reps,
+        sets=exercise.sets
     )
     db.add(db_exercise)
     db.commit()
@@ -166,7 +169,8 @@ def update_exercise(db: Session, exercise_id: str, updates: dict) -> Exercise | 
         exercise_type=db_exercise.exercise_type,
         muscle_groups=muscle_groups,
         max_weight=db_exercise.max_weight,
-        max_reps=db_exercise.max_reps
+        max_reps=db_exercise.max_reps,
+        sets=db_exercise.sets
     )
 
 
