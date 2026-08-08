@@ -191,6 +191,24 @@ def _add_missing_columns():
                     conn.execute(text(f"ALTER TABLE {quote('exercises')} ADD COLUMN sets INTEGER"))
                 logger.info("Добавлена колонка sets в таблицу exercises")
 
+        # workouts table — routine_id (какая тренировка была пройдена)
+        if 'workouts' in inspector.get_table_names():
+            cols = inspector.get_columns('workouts')
+            col_names = [c['name'] for c in cols]
+            if 'routine_id' not in col_names:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE {quote('workouts')} ADD COLUMN routine_id VARCHAR(36)"))
+                logger.info("Добавлена колонка routine_id в таблицу workouts")
+
+        # tasks table — routine_id (для task_type=workout)
+        if 'tasks' in inspector.get_table_names():
+            cols = inspector.get_columns('tasks')
+            col_names = [c['name'] for c in cols]
+            if 'routine_id' not in col_names:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE {quote('tasks')} ADD COLUMN routine_id VARCHAR(36)"))
+                logger.info("Добавлена колонка routine_id в таблицу tasks")
+
         # transactions/debts — amount: Float -> Numeric(12,2), чтобы не копилась
         # погрешность округления при суммировании денег (только Postgres, SQLite не типизирован строго)
         if dialect == 'postgresql':

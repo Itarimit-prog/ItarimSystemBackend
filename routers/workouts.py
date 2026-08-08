@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from workouts_models import (
     Workout, WorkoutCreate, WorkoutUpdate,
     Exercise, ExerciseCreate,
+    Routine, RoutineCreate, RoutineUpdate,
+    RoutineExerciseOut, RoutineExerciseCreate, RoutineExerciseUpdate,
     UserProfile, UserProfileUpdate
 )
 from database import get_db
@@ -48,6 +50,56 @@ def update_exercise(exercise_id: str, payload: ExerciseCreate, db: Session = Dep
 @router.delete("/exercises/{exercise_id}", status_code=204)
 def delete_exercise(exercise_id: str, db: Session = Depends(get_db)):
     if not workouts_db.delete_exercise(db, exercise_id):
+        raise HTTPException(status_code=404, detail="Упражнение не найдено")
+
+
+# ── Тренировки-роутины (должны быть ДО /{workout_id}) ──
+
+@router.get("/routines/", response_model=list[Routine])
+def get_routines(db: Session = Depends(get_db)):
+    return workouts_db.get_all_routines(db)
+
+
+@router.post("/routines/", response_model=Routine, status_code=201)
+def create_routine(payload: RoutineCreate, db: Session = Depends(get_db)):
+    return workouts_db.create_routine(db, payload.name, payload.icon)
+
+
+@router.patch("/routines/{routine_id}", response_model=Routine)
+def update_routine(routine_id: str, payload: RoutineUpdate, db: Session = Depends(get_db)):
+    updated = workouts_db.update_routine(db, routine_id, payload.model_dump(exclude_none=True))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Тренировка не найдена")
+    return updated
+
+
+@router.delete("/routines/{routine_id}", status_code=204)
+def delete_routine(routine_id: str, db: Session = Depends(get_db)):
+    if not workouts_db.delete_routine(db, routine_id):
+        raise HTTPException(status_code=404, detail="Тренировка не найдена")
+
+
+@router.get("/routines/{routine_id}/exercises", response_model=list[RoutineExerciseOut])
+def get_routine_exercises(routine_id: str, db: Session = Depends(get_db)):
+    return workouts_db.get_routine_exercises(db, routine_id)
+
+
+@router.post("/routines/{routine_id}/exercises", response_model=RoutineExerciseOut, status_code=201)
+def add_routine_exercise(routine_id: str, payload: RoutineExerciseCreate, db: Session = Depends(get_db)):
+    return workouts_db.add_routine_exercise(db, routine_id, payload)
+
+
+@router.patch("/routines/exercises/{routine_exercise_id}", response_model=RoutineExerciseOut)
+def update_routine_exercise(routine_exercise_id: str, payload: RoutineExerciseUpdate, db: Session = Depends(get_db)):
+    updated = workouts_db.update_routine_exercise(db, routine_exercise_id, payload.model_dump(exclude_none=True))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Упражнение не найдено")
+    return updated
+
+
+@router.delete("/routines/exercises/{routine_exercise_id}", status_code=204)
+def delete_routine_exercise(routine_exercise_id: str, db: Session = Depends(get_db)):
+    if not workouts_db.delete_routine_exercise(db, routine_exercise_id):
         raise HTTPException(status_code=404, detail="Упражнение не найдено")
 
 

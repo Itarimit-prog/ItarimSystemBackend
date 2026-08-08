@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from finance_models import (
     Transaction, TransactionCreate, TransactionUpdate,
     Debt, DebtCreate, DebtUpdate,
-    Balance
+    Balance, MonthArchiveEntry
 )
 from database import get_db
 import finance_db
@@ -17,6 +17,11 @@ router = APIRouter(prefix="/finances", tags=["finances"])
 @router.get("/balance/", response_model=Balance)
 def get_balance(db: Session = Depends(get_db)):
     return finance_db.get_balance(db)
+
+
+@router.get("/archive/", response_model=list[MonthArchiveEntry])
+def get_archive(db: Session = Depends(get_db)):
+    return finance_db.get_monthly_archive(db)
 
 
 # ── Транзакции ──

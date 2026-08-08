@@ -129,6 +129,16 @@ class DebtUpdate(BaseModel):
 
 
 class Balance(BaseModel):
-    total_income: float
-    total_expense: float
-    balance: float
+    total_income: float  # доходы ЗА ТЕКУЩИЙ МЕСЯЦ
+    total_expense: float  # расходы ЗА ТЕКУЩИЙ МЕСЯЦ
+    balance: float  # накопленный баланс за всё время, не обнуляется
+
+
+class MonthArchiveEntry(BaseModel):
+    month: str  # "2026-06"
+    label: str  # "Июнь 2026"
+    income: float
+    expense: float
+    net: float
+    top_category: Optional[TransactionCategory] = None
+    top_category_amount: Optional[float] = None

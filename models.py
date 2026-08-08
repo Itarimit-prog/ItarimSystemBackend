@@ -15,6 +15,7 @@ class TaskType(str, Enum):
     personal = "personal"
     routine = "routine"
     rest = "rest"
+    workout = "workout"
 
 
 class TaskStatus(str, Enum):
@@ -34,6 +35,7 @@ class TaskModel(Base):
     time_start = Column(String(5), nullable=False)  # "HH:MM"
     time_end = Column(String(5), nullable=False)    # "HH:MM"
     date = Column(Date, nullable=False)
+    routine_id = Column(String, nullable=True)  # для task_type=workout — ссылка на routines.id
 
 
 # ── Pydantic схемы для API ──
@@ -45,6 +47,7 @@ class TaskBase(BaseModel):
     time_start: str  # "HH:MM"
     time_end: str    # "HH:MM"
     date: date
+    routine_id: Optional[str] = None
 
 
 class TaskCreate(TaskBase):
@@ -57,6 +60,7 @@ class TaskUpdate(BaseModel):
     status: Optional[TaskStatus] = None
     time_start: Optional[str] = None
     time_end: Optional[str] = None
+    routine_id: Optional[str] = None
 
 
 class Task(TaskBase):

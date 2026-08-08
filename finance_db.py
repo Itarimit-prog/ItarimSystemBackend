@@ -3,10 +3,15 @@ from sqlalchemy import func
 from finance_models import (
     TransactionModel, Transaction, TransactionCreate, TransactionUpdate,
     DebtModel, Debt, DebtCreate, DebtUpdate,
-    Balance
+    Balance, MonthArchiveEntry
 )
-from datetime import date
+from datetime import date, datetime, timedelta
 import uuid
+
+_MONTH_LABELS = [
+    "", "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+]
 
 
 def seed_finances(db: Session):
@@ -250,20 +255,74 @@ def delete_debt(db: Session, debt_id: str) -> bool:
 # ── Баланс ──
 
 def get_balance(db: Session) -> Balance:
-    total_income = db.query(TransactionModel).filter(
+    now = datetime.now()
+    month_start = now.replace(day=1).strftime("%Y-%m-%d")
+    next_month = now.replace(day=28) + timedelta(days=4)
+    next_month_start = next_month.replace(day=1).strftime("%Y-%m-%d")
+
+    month_income = db.query(func.coalesce(func.sum(TransactionModel.amount), 0)).filter(
+        TransactionModel.transaction_type == "income",
+        TransactionModel.date >= month_start,
+        TransactionModel.date < next_month_start,
+    ).scalar()
+
+    month_expense = db.query(func.coalesce(func.sum(TransactionModel.amount), 0)).filter(
+        TransactionModel.transaction_type == "expense",
+        TransactionModel.date >= month_start,
+        TransactionModel.date < next_month_start,
+    ).scalar()
+
+    # Баланс — накопленный за ВСЁ время, никогда не обнуляется
+    total_income_all = db.query(func.coalesce(func.sum(TransactionModel.amount), 0)).filter(
         TransactionModel.transaction_type == "income"
-    ).with_entities(
-        func.coalesce(func.sum(TransactionModel.amount), 0)
     ).scalar()
-    
-    total_expense = db.query(TransactionModel).filter(
+    total_expense_all = db.query(func.coalesce(func.sum(TransactionModel.amount), 0)).filter(
         TransactionModel.transaction_type == "expense"
-    ).with_entities(
-        func.coalesce(func.sum(TransactionModel.amount), 0)
     ).scalar()
-    
+
     return Balance(
-        total_income=float(total_income),
-        total_expense=float(total_expense),
-        balance=float(total_income - total_expense)
+        total_income=round(float(month_income), 2),
+        total_expense=round(float(month_expense), 2),
+        balance=round(float(total_income_all) - float(total_expense_all), 2)
     )
+
+
+def get_monthly_archive(db: Session) -> list[MonthArchiveEntry]:
+    """Агрегация доход/расход по месяцам из истории транзакций (текущий месяц не входит — он ещё не закрыт)"""
+    current_month_key = datetime.now().strftime("%Y-%m")
+
+    transactions = db.query(TransactionModel).all()
+    months: dict[str, dict] = {}
+    for t in transactions:
+        month_key = t.date[:7]
+        if month_key == current_month_key or len(month_key) != 7:
+            continue
+        m = months.setdefault(month_key, {"income": 0.0, "expense": 0.0, "cats": {}})
+        amt = float(t.amount)
+        if t.transaction_type == "income":
+            m["income"] += amt
+        else:
+            m["expense"] += amt
+            cat = t.category
+            m["cats"][cat] = m["cats"].get(cat, 0.0) + amt
+
+    result = []
+    for month_key in sorted(months.keys(), reverse=True):
+        m = months[month_key]
+        top_category = None
+        top_category_amount = None
+        if m["cats"]:
+            top_category = max(m["cats"], key=m["cats"].get)
+            top_category_amount = round(m["cats"][top_category], 2)
+        year_str, month_str = month_key.split("-")
+        label = f"{_MONTH_LABELS[int(month_str)]} {year_str}"
+        result.append(MonthArchiveEntry(
+            month=month_key,
+            label=label,
+            income=round(m["income"], 2),
+            expense=round(m["expense"], 2),
+            net=round(m["income"] - m["expense"], 2),
+            top_category=top_category,
+            top_category_amount=top_category_amount,
+        ))
+    return result

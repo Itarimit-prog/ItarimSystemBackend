@@ -19,7 +19,8 @@ def get_tasks_by_date(db: Session, target_date: date) -> list[Task]:
             status=t.status,
             time_start=t.time_start,
             time_end=t.time_end,
-            date=t.date
+            date=t.date,
+            routine_id=t.routine_id
         )
         for t in tasks
     ]
@@ -36,7 +37,8 @@ def get_task(db: Session, task_id: str) -> Task | None:
         status=t.status,
         time_start=t.time_start,
         time_end=t.time_end,
-        date=t.date
+        date=t.date,
+        routine_id=t.routine_id
     )
 
 
@@ -48,7 +50,8 @@ def create_task(db: Session, task: Task) -> Task:
         status=task.status,
         time_start=task.time_start,
         time_end=task.time_end,
-        date=task.date
+        date=task.date,
+        routine_id=task.routine_id
     )
     db.add(db_task)
     db.commit()
@@ -60,14 +63,14 @@ def update_task(db: Session, task_id: str, updates: dict) -> Task | None:
     db_task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
     if not db_task:
         return None
-    
+
     for key, value in updates.items():
         if value is not None:
             setattr(db_task, key, value)
-    
+
     db.commit()
     db.refresh(db_task)
-    
+
     return Task(
         id=db_task.id,
         title=db_task.title,
@@ -75,7 +78,8 @@ def update_task(db: Session, task_id: str, updates: dict) -> Task | None:
         status=db_task.status,
         time_start=db_task.time_start,
         time_end=db_task.time_end,
-        date=db_task.date
+        date=db_task.date,
+        routine_id=db_task.routine_id
     )
 
 

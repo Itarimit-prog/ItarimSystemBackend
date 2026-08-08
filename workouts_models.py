@@ -17,6 +17,7 @@ class WorkoutModel(Base):
     duration_minutes = Column(Integer, nullable=False)
     exercises = Column(String, nullable=False)  # JSON array of exercise IDs
     notes = Column(Text, nullable=True)
+    routine_id = Column(String, nullable=True)  # какая тренировка (роутин) была пройдена
 
 
 class ExerciseModel(Base):
@@ -31,6 +32,29 @@ class ExerciseModel(Base):
     max_weight = Column(Float, nullable=True)
     max_reps = Column(Integer, nullable=True)
     sets = Column(Integer, nullable=True)
+
+
+class RoutineModel(Base):
+    """Именованная тренировка (набор упражнений), напр. "День спины" """
+    __tablename__ = "routines"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), nullable=False)
+    icon = Column(String(10), nullable=True)
+    position = Column(Integer, default=0)
+
+
+class RoutineExerciseModel(Base):
+    """Упражнение внутри конкретной тренировки (со своими подходами/повторениями/весом)"""
+    __tablename__ = "routine_exercises"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    routine_id = Column(String, nullable=False)
+    exercise_id = Column(String, nullable=False)
+    sets = Column(Integer, nullable=True)
+    reps = Column(Integer, nullable=True)
+    weight = Column(Float, nullable=True)
+    position = Column(Integer, default=0)
 
 
 class UserProfileModel(Base):
@@ -49,6 +73,7 @@ class WorkoutBase(BaseModel):
     duration_minutes: int
     exercises: List[str]  # list of exercise IDs
     notes: Optional[str] = None
+    routine_id: Optional[str] = None
 
 
 class Workout(WorkoutBase):
@@ -67,6 +92,7 @@ class WorkoutUpdate(BaseModel):
     duration_minutes: Optional[int] = None
     exercises: Optional[List[str]] = None
     notes: Optional[str] = None
+    routine_id: Optional[str] = None
 
 
 class ExerciseBase(BaseModel):
@@ -88,6 +114,55 @@ class Exercise(ExerciseBase):
 
 class ExerciseCreate(ExerciseBase):
     pass
+
+
+class Routine(BaseModel):
+    id: str
+    name: str
+    icon: Optional[str] = None
+    position: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class RoutineCreate(BaseModel):
+    name: str
+    icon: Optional[str] = None
+
+
+class RoutineUpdate(BaseModel):
+    name: Optional[str] = None
+    icon: Optional[str] = None
+
+
+class RoutineExerciseOut(BaseModel):
+    id: str  # id связи routine_exercises, используется для update/delete
+    exercise_id: str
+    name: str
+    description: Optional[str] = None
+    exercise_type: str
+    muscle_groups: List[str]
+    sets: Optional[int] = None
+    reps: Optional[int] = None
+    weight: Optional[float] = None
+    position: int = 0
+
+
+class RoutineExerciseCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    exercise_type: str = "strength"
+    muscle_groups: List[str] = []
+    sets: Optional[int] = None
+    reps: Optional[int] = None
+    weight: Optional[float] = None
+
+
+class RoutineExerciseUpdate(BaseModel):
+    sets: Optional[int] = None
+    reps: Optional[int] = None
+    weight: Optional[float] = None
 
 
 class UserProfile(BaseModel):

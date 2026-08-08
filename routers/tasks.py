@@ -19,6 +19,7 @@ _TASK_STAT_MAP = {
     "rest": "health",
     "routine": "discipline",
     "personal": "charisma",
+    "workout": "strength",
 }
 
 

@@ -5,24 +5,32 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
-from routers import tasks, templates, kanban, habits, workouts, finances, profile
+from routers import tasks, templates, kanban, habits, workouts, finances, profile, roadmap
 from database import engine, init_db, get_db, SessionLocal, DATABASE_URL
 from auth import verify_api_key
-import db, kanban_db, habits_db, workouts_db, finance_db, profile_db
+import db, kanban_db, habits_db, workouts_db, finance_db, profile_db, roadmap_db
 import logging
 
 from models import TaskModel, TemplateModel
 from kanban_models import BoardModel, KanbanColumnModel, KanbanCardModel
 from habits_models import HabitModel, CheckModel, RelapseModel
-from workouts_models import WorkoutModel, ExerciseModel, UserProfileModel
+from workouts_models import WorkoutModel, ExerciseModel, UserProfileModel, RoutineModel, RoutineExerciseModel
 from finance_models import TransactionModel, DebtModel
 from profile_models import PlayerModel, StatModel, UnlockedAchievementModel
+from roadmap_models import RoadmapModel, RoadmapStepModel
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Инициализируем БД (создаем таблицы) асинхронно
     await init_db()
-    
+
+    # Разовая миграция: собрать существующие упражнения в тренировку "Основная"
+    migration_db = SessionLocal()
+    try:
+        workouts_db.ensure_default_routine(migration_db)
+    finally:
+        migration_db.close()
+
     yield
 
 
@@ -49,6 +57,7 @@ app.include_router(habits.router, dependencies=_auth)
 app.include_router(workouts.router, dependencies=_auth)
 app.include_router(finances.router, dependencies=_auth)
 app.include_router(profile.router, dependencies=_auth)
+app.include_router(roadmap.router, dependencies=_auth)
 
 
 @app.post("/reset-all", dependencies=_auth)
@@ -63,9 +72,10 @@ def reset_all(session: Session = Depends(get_db)):
         TaskModel, TemplateModel,
         KanbanCardModel, KanbanColumnModel, BoardModel,
         CheckModel, RelapseModel, HabitModel,
-        WorkoutModel, ExerciseModel, UserProfileModel,
+        WorkoutModel, RoutineExerciseModel, ExerciseModel, RoutineModel, UserProfileModel,
         TransactionModel, DebtModel,
         UnlockedAchievementModel, StatModel, PlayerModel,
+        RoadmapStepModel, RoadmapModel,
     ):
         session.query(model).delete()
     session.commit()
