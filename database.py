@@ -209,6 +209,32 @@ def _add_missing_columns():
                     conn.execute(text(f"ALTER TABLE {quote('tasks')} ADD COLUMN routine_id VARCHAR(36)"))
                 logger.info("Добавлена колонка routine_id в таблицу tasks")
 
+        # tasks table — duration_minutes, order_index (режим "свободное планирование")
+        if 'tasks' in inspector.get_table_names():
+            cols = inspector.get_columns('tasks')
+            col_names = [c['name'] for c in cols]
+            if 'duration_minutes' not in col_names:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE {quote('tasks')} ADD COLUMN duration_minutes INTEGER"))
+                logger.info("Добавлена колонка duration_minutes в таблицу tasks")
+            if 'order_index' not in col_names:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE {quote('tasks')} ADD COLUMN order_index INTEGER"))
+                logger.info("Добавлена колонка order_index в таблицу tasks")
+
+            # time_start/time_end были NOT NULL — задачи-длительности их не задают
+            time_start_col = next((c for c in cols if c['name'] == 'time_start'), None)
+            time_end_col = next((c for c in cols if c['name'] == 'time_end'), None)
+            if dialect == 'postgresql':
+                if time_start_col and not time_start_col.get('nullable', True):
+                    with engine.begin() as conn:
+                        conn.execute(text(f"ALTER TABLE {quote('tasks')} ALTER COLUMN time_start DROP NOT NULL"))
+                    logger.info("Колонка time_start в таблице tasks стала nullable")
+                if time_end_col and not time_end_col.get('nullable', True):
+                    with engine.begin() as conn:
+                        conn.execute(text(f"ALTER TABLE {quote('tasks')} ALTER COLUMN time_end DROP NOT NULL"))
+                    logger.info("Колонка time_end в таблице tasks стала nullable")
+
         # transactions/debts — amount: Float -> Numeric(12,2), чтобы не копилась
         # погрешность округления при суммировании денег (только Postgres, SQLite не типизирован строго)
         if dialect == 'postgresql':

@@ -44,7 +44,7 @@ def update_task(task_id: str, payload: TaskUpdate, session: Session = Depends(ge
     # Получаем текущую задачу ДО обновления
     old_task = tasks_db.get_task(session, task_id)
 
-    updated = tasks_db.update_task(session, task_id, payload.model_dump(exclude_none=True))
+    updated = tasks_db.update_task(session, task_id, payload.model_dump(exclude_unset=True))
     if not updated:
         raise HTTPException(status_code=404, detail="Задача не найдена")
 

@@ -9,27 +9,7 @@ import json
 def _placeholder_seed(): pass
 
 
-def get_tasks_by_date(db: Session, target_date: date) -> list[Task]:
-    tasks = db.query(TaskModel).filter(TaskModel.date == target_date).all()
-    return [
-        Task(
-            id=t.id,
-            title=t.title,
-            task_type=t.task_type,
-            status=t.status,
-            time_start=t.time_start,
-            time_end=t.time_end,
-            date=t.date,
-            routine_id=t.routine_id
-        )
-        for t in tasks
-    ]
-
-
-def get_task(db: Session, task_id: str) -> Task | None:
-    t = db.query(TaskModel).filter(TaskModel.id == task_id).first()
-    if not t:
-        return None
+def _task_out(t: TaskModel) -> Task:
     return Task(
         id=t.id,
         title=t.title,
@@ -37,9 +17,23 @@ def get_task(db: Session, task_id: str) -> Task | None:
         status=t.status,
         time_start=t.time_start,
         time_end=t.time_end,
+        duration_minutes=t.duration_minutes,
+        order_index=t.order_index,
         date=t.date,
         routine_id=t.routine_id
     )
+
+
+def get_tasks_by_date(db: Session, target_date: date) -> list[Task]:
+    tasks = db.query(TaskModel).filter(TaskModel.date == target_date).all()
+    return [_task_out(t) for t in tasks]
+
+
+def get_task(db: Session, task_id: str) -> Task | None:
+    t = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+    if not t:
+        return None
+    return _task_out(t)
 
 
 def create_task(db: Session, task: Task) -> Task:
@@ -50,6 +44,8 @@ def create_task(db: Session, task: Task) -> Task:
         status=task.status,
         time_start=task.time_start,
         time_end=task.time_end,
+        duration_minutes=task.duration_minutes,
+        order_index=task.order_index,
         date=task.date,
         routine_id=task.routine_id
     )
@@ -65,22 +61,12 @@ def update_task(db: Session, task_id: str, updates: dict) -> Task | None:
         return None
 
     for key, value in updates.items():
-        if value is not None:
-            setattr(db_task, key, value)
+        setattr(db_task, key, value)
 
     db.commit()
     db.refresh(db_task)
 
-    return Task(
-        id=db_task.id,
-        title=db_task.title,
-        task_type=db_task.task_type,
-        status=db_task.status,
-        time_start=db_task.time_start,
-        time_end=db_task.time_end,
-        date=db_task.date,
-        routine_id=db_task.routine_id
-    )
+    return _task_out(db_task)
 
 
 def delete_task(db: Session, task_id: str) -> bool:

@@ -14,8 +14,14 @@ __pycache__/
 *.so
 .Python
 venv/
+venv_build/
 env/
 ENV/
+
+# PyInstaller (сборка sidecar-бинаря — см. build_sidecar.sh)
+build/
+dist/
+*.spec
 
 # IDE
 .idea/
