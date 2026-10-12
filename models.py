@@ -38,6 +38,7 @@ class TaskModel(Base):
     order_index = Column(Integer, nullable=True)  # ручной порядок среди задач-длительностей
     date = Column(Date, nullable=False)
     routine_id = Column(String, nullable=True)  # для task_type=workout — ссылка на routines.id
+    recurring_id = Column(String, nullable=True)  # из какого правила повторения создана задача
 
 
 # ── Pydantic схемы для API ──
@@ -52,6 +53,7 @@ class TaskBase(BaseModel):
     order_index: Optional[int] = None
     date: date
     routine_id: Optional[str] = None
+    recurring_id: Optional[str] = None
 
 
 class TaskCreate(TaskBase):
@@ -79,8 +81,9 @@ class Task(TaskBase):
 class TemplateTaskItem(BaseModel):
     title: str
     task_type: TaskType
-    time_start: str
-    time_end: str
+    time_start: Optional[str] = None
+    time_end: Optional[str] = None
+    duration_minutes: Optional[int] = None
 
 
 class TemplateModel(Base):

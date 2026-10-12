@@ -26,28 +26,6 @@ class StatModel(Base):
     level = Column(Integer, default=1)
 
 
-class AchievementDefModel(Base):
-    """Определения достижений (справочник)"""
-    __tablename__ = "achievement_defs"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    code = Column(String(50), nullable=False, unique=True)  # first_workout, iron_will, etc.
-    title = Column(String(100), nullable=False)
-    description = Column(String(300), nullable=False)
-    icon = Column(String(10), default="🏅")
-    stat_key = Column(String(30), nullable=True)  # какую характеристику качает
-    xp_reward = Column(Integer, default=50)
-
-
-class UnlockedAchievementModel(Base):
-    """Разблокированные достижения игрока"""
-    __tablename__ = "unlocked_achievements"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    achievement_code = Column(String(50), nullable=False, unique=True)
-    unlocked_at = Column(String(30), nullable=False)  # ISO datetime
-
-
 # ── Pydantic схемы для API ──
 
 class Stat(BaseModel):
@@ -61,24 +39,6 @@ class PlayerProfile(BaseModel):
     level: int
     xp_to_next: int  # сколько XP нужно до следующего уровня
     stats: List[Stat]
-
-
-class Achievement(BaseModel):
-    code: str
-    title: str
-    description: str
-    icon: str
-    stat_key: Optional[str] = None
-    xp_reward: int
-    unlocked_at: str  # ISO datetime
-
-
-class AchievementUnlockEvent(BaseModel):
-    """Событие разблокировки — для уведомлений"""
-    achievement: Achievement
-    xp_gained: int
-    stat_gained: Optional[str] = None
-    stat_xp_gained: int = 0
 
 
 class XpResult(BaseModel):

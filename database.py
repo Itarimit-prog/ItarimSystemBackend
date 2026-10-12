@@ -90,7 +90,11 @@ async def init_db():
     from habits_models import HabitModel, CheckModel, RelapseModel
     from workouts_models import WorkoutModel, ExerciseModel, UserProfileModel
     from finance_models import TransactionModel, DebtModel
-    from profile_models import PlayerModel, StatModel, AchievementDefModel, UnlockedAchievementModel
+    from profile_models import PlayerModel, StatModel
+    from roadmap_models import RoadmapModel, RoadmapStepModel
+    from goals_models import GoalModel
+    from achievements_models import AchievementModel, MetaModel
+    from recurring_models import RecurringTaskModel, RecurringGeneratedModel
 
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(_executor, Base.metadata.create_all, engine)
@@ -106,7 +110,11 @@ def _sync_init_db():
     from habits_models import HabitModel, CheckModel, RelapseModel
     from workouts_models import WorkoutModel, ExerciseModel, UserProfileModel
     from finance_models import TransactionModel, DebtModel
-    from profile_models import PlayerModel, StatModel, AchievementDefModel, UnlockedAchievementModel
+    from profile_models import PlayerModel, StatModel
+    from roadmap_models import RoadmapModel, RoadmapStepModel
+    from goals_models import GoalModel
+    from achievements_models import AchievementModel, MetaModel
+    from recurring_models import RecurringTaskModel, RecurringGeneratedModel
 
     Base.metadata.create_all(bind=engine)
     _add_missing_columns()
@@ -234,6 +242,28 @@ def _add_missing_columns():
                     with engine.begin() as conn:
                         conn.execute(text(f"ALTER TABLE {quote('tasks')} ALTER COLUMN time_end DROP NOT NULL"))
                     logger.info("Колонка time_end в таблице tasks стала nullable")
+
+        # tasks — recurring_id (повторяющиеся задачи)
+        if 'tasks' in inspector.get_table_names():
+            if 'recurring_id' not in [c['name'] for c in inspector.get_columns('tasks')]:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE {quote('tasks')} ADD COLUMN recurring_id VARCHAR(36)"))
+                logger.info("Добавлена колонка recurring_id в таблицу tasks")
+
+        # roadmaps/roadmap_steps — канвас и привязка к целям
+        for table, col, ddl in (
+            ('roadmaps', 'goal_id', 'VARCHAR(36)'),
+            ('roadmap_steps', 'x', 'FLOAT'),
+            ('roadmap_steps', 'y', 'FLOAT'),
+            ('roadmap_steps', 'parent_step_id', 'VARCHAR(36)'),
+            ('roadmap_steps', 'done', 'BOOLEAN DEFAULT FALSE'),
+        ):
+            if table in inspector.get_table_names():
+                existing = [c['name'] for c in inspector.get_columns(table)]
+                if col not in existing:
+                    with engine.begin() as conn:
+                        conn.execute(text(f"ALTER TABLE {quote(table)} ADD COLUMN {col} {ddl}"))
+                    logger.info(f"Добавлена колонка {col} в таблицу {table}")
 
         # transactions/debts — amount: Float -> Numeric(12,2), чтобы не копилась
         # погрешность округления при суммировании денег (только Postgres, SQLite не типизирован строго)

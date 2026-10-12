@@ -5,10 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
-from routers import tasks, templates, kanban, habits, workouts, finances, profile, roadmap
+from routers import tasks, templates, kanban, habits, workouts, finances, profile, roadmap, goals, achievements, recurring, settings
 from database import engine, init_db, get_db, SessionLocal, DATABASE_URL
 from auth import verify_api_key
-import db, kanban_db, habits_db, workouts_db, finance_db, profile_db, roadmap_db
+import db, kanban_db, habits_db, workouts_db, finance_db, profile_db, roadmap_db, goals_db, achievements_db
 import logging
 
 from models import TaskModel, TemplateModel
@@ -16,8 +16,11 @@ from kanban_models import BoardModel, KanbanColumnModel, KanbanCardModel
 from habits_models import HabitModel, CheckModel, RelapseModel
 from workouts_models import WorkoutModel, ExerciseModel, UserProfileModel, RoutineModel, RoutineExerciseModel
 from finance_models import TransactionModel, DebtModel
-from profile_models import PlayerModel, StatModel, UnlockedAchievementModel
+from profile_models import PlayerModel, StatModel
 from roadmap_models import RoadmapModel, RoadmapStepModel
+from goals_models import GoalModel
+from achievements_models import AchievementModel
+from recurring_models import RecurringTaskModel, RecurringGeneratedModel
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,6 +31,8 @@ async def lifespan(app: FastAPI):
     migration_db = SessionLocal()
     try:
         workouts_db.ensure_default_routine(migration_db)
+        roadmap_db.ensure_step_layout(migration_db)
+        achievements_db.import_legacy_unlocked(migration_db)
     finally:
         migration_db.close()
 
@@ -58,6 +63,10 @@ app.include_router(workouts.router, dependencies=_auth)
 app.include_router(finances.router, dependencies=_auth)
 app.include_router(profile.router, dependencies=_auth)
 app.include_router(roadmap.router, dependencies=_auth)
+app.include_router(goals.router, dependencies=_auth)
+app.include_router(achievements.router, dependencies=_auth)
+app.include_router(recurring.router, dependencies=_auth)
+app.include_router(settings.router, dependencies=_auth)
 
 
 @app.post("/reset-all", dependencies=_auth)
@@ -74,8 +83,8 @@ def reset_all(session: Session = Depends(get_db)):
         CheckModel, RelapseModel, HabitModel,
         WorkoutModel, RoutineExerciseModel, ExerciseModel, RoutineModel, UserProfileModel,
         TransactionModel, DebtModel,
-        UnlockedAchievementModel, StatModel, PlayerModel,
-        RoadmapStepModel, RoadmapModel,
+        StatModel, PlayerModel,
+        RoadmapStepModel, RoadmapModel, GoalModel, AchievementModel, RecurringGeneratedModel, RecurringTaskModel,
     ):
         session.query(model).delete()
     session.commit()

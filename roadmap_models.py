@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from sqlalchemy import Column, String, Integer
+from sqlalchemy import Column, String, Integer, Float, Boolean
 from database import Base
 from typing import List, Optional
 import uuid
@@ -15,6 +15,7 @@ class RoadmapModel(Base):
     name = Column(String(100), nullable=False)
     position = Column(Integer, default=0)
     current_step_id = Column(String, nullable=True)
+    goal_id = Column(String, nullable=True)  # если roadmap принадлежит цели
 
 
 class RoadmapStepModel(Base):
@@ -25,6 +26,10 @@ class RoadmapStepModel(Base):
     roadmap_id = Column(String, nullable=False)
     label = Column(String(100), nullable=False)
     position = Column(Integer, default=0)
+    x = Column(Float, nullable=True)  # координаты узла на канвасе
+    y = Column(Float, nullable=True)
+    parent_step_id = Column(String, nullable=True)  # от какого узла идёт связь
+    done = Column(Boolean, default=False)
 
 
 # ── Pydantic схемы для API ──
@@ -33,6 +38,10 @@ class RoadmapStep(BaseModel):
     id: str
     label: str
     position: int = 0
+    x: float = 0
+    y: float = 0
+    parent_step_id: Optional[str] = None
+    done: bool = False
 
     class Config:
         from_attributes = True
@@ -43,6 +52,7 @@ class Roadmap(BaseModel):
     name: str
     position: int = 0
     current_step_id: Optional[str] = None
+    goal_id: Optional[str] = None
     steps: List[RoadmapStep] = []
 
     class Config:
@@ -60,8 +70,15 @@ class RoadmapUpdate(BaseModel):
 
 class RoadmapStepCreate(BaseModel):
     label: str
+    parent_step_id: Optional[str] = None
+    x: Optional[float] = None
+    y: Optional[float] = None
 
 
 class RoadmapStepUpdate(BaseModel):
     label: Optional[str] = None
     position: Optional[int] = None
+    x: Optional[float] = None
+    y: Optional[float] = None
+    parent_step_id: Optional[str] = None
+    done: Optional[bool] = None

@@ -1,21 +1,16 @@
 """
-Profile DB — логика XP, уровней, характеристик и достижений.
+Profile DB — логика XP, уровней и характеристик.
 
 Основные функции:
 - init_player(db) — создаёт игрока и 6 характеристик если их нет
 - get_profile(db) — возвращает полный профиль
 - award_xp(db, amount, stat_key) — начисляет XP (общий + в характеристику)
-- check_and_unlock_achievements(db) — проверяет и разблокирует достижения
 - recalculate_all(db) — пересчёт всех статов на основе истории (ретроактивно)
 """
 
 from sqlalchemy.orm import Session
 from datetime import datetime
-from profile_models import (
-    PlayerModel, StatModel, AchievementDefModel, UnlockedAchievementModel,
-    PlayerProfile, Stat, Achievement, AchievementUnlockEvent
-)
-from profile_achievements import get_all_achievement_defs, check_all_achievements
+from profile_models import PlayerModel, StatModel, PlayerProfile, Stat
 import uuid
 import logging
 
@@ -85,24 +80,6 @@ def init_player(db: Session) -> None:
                 stat_key=key,
                 xp=0,
                 level=1
-            ))
-
-    # Синхронизируем справочник достижений с текущим кодом.
-    # ВАЖНО: раньше это делалось только один раз ("если таблица пустая"),
-    # из-за чего при добавлении новых достижений в код справочник
-    # молча отставал — уже разблокированные ачивки переставали находить
-    # свою запись в AchievementDefModel и пропадали из профиля.
-    existing_codes = {row[0] for row in db.query(AchievementDefModel.code).all()}
-    for ach_def in get_all_achievement_defs():
-        if ach_def["code"] not in existing_codes:
-            db.add(AchievementDefModel(
-                id=str(uuid.uuid4()),
-                code=ach_def["code"],
-                title=ach_def["title"],
-                description=ach_def["description"],
-                icon=ach_def["icon"],
-                stat_key=ach_def.get("stat_key"),
-                xp_reward=ach_def["xp_reward"],
             ))
 
     db.commit()
@@ -223,92 +200,6 @@ def revoke_xp(db: Session, amount: int, stat_key: str | None = None, commit: boo
     }
 
 
-# ── Достижения ──
-
-def get_unlocked_achievements(db: Session) -> list[Achievement]:
-    """Возвращает список разблокированных достижений"""
-    unlocked = db.query(UnlockedAchievementModel).order_by(
-        UnlockedAchievementModel.unlocked_at.desc()
-    ).all()
-
-    result = []
-    for ua in unlocked:
-        ach_def = db.query(AchievementDefModel).filter(
-            AchievementDefModel.code == ua.achievement_code
-        ).first()
-        if ach_def:
-            result.append(Achievement(
-                code=ach_def.code,
-                title=ach_def.title,
-                description=ach_def.description,
-                icon=ach_def.icon,
-                stat_key=ach_def.stat_key,
-                xp_reward=ach_def.xp_reward,
-                unlocked_at=ua.unlocked_at,
-            ))
-    return result
-
-
-def check_and_unlock_achievements(db: Session) -> list[AchievementUnlockEvent]:
-    """
-    Проверяет все достижения и разблокирует новые.
-    Возвращает список событий разблокировки.
-    """
-    init_player(db)
-
-    already_unlocked = set(
-        ua.achievement_code
-        for ua in db.query(UnlockedAchievementModel).all()
-    )
-
-    new_unlocks = check_all_achievements(db, already_unlocked)
-    events = []
-
-    for ach in new_unlocks:
-        # Re-check: может быть уже разблокировано другим запросом
-        existing = db.query(UnlockedAchievementModel).filter(
-            UnlockedAchievementModel.achievement_code == ach["code"]
-        ).first()
-        if existing:
-            continue
-
-        # SAVEPOINT — сбой одной ачивки откатывает только её,
-        # а не весь batch уже собранных в этом проходе разблокировок
-        try:
-            with db.begin_nested():
-                ua = UnlockedAchievementModel(
-                    id=str(uuid.uuid4()),
-                    achievement_code=ach["code"],
-                    unlocked_at=datetime.now().isoformat(),
-                )
-                db.add(ua)
-                xp_result = award_xp(
-                    db, ach["xp_reward"], ach.get("stat_key"), commit=False,
-                    stat_amount=ach.get("stat_xp", 0),
-                )
-        except Exception:
-            logger.exception("Не удалось разблокировать достижение %s", ach.get("code"))
-            continue
-
-        events.append(AchievementUnlockEvent(
-            achievement=Achievement(
-                code=ach["code"],
-                title=ach["title"],
-                description=ach["description"],
-                icon=ach["icon"],
-                stat_key=ach.get("stat_key"),
-                xp_reward=ach["xp_reward"],
-                unlocked_at=ua.unlocked_at,
-            ),
-            xp_gained=ach["xp_reward"],
-            stat_gained=ach.get("stat_key"),
-            stat_xp_gained=ach.get("stat_xp", 0),
-        ))
-
-    db.commit()
-    return events
-
-
 # ── Ретроактивный пересчёт ──
 
 def recalculate_all(db: Session) -> PlayerProfile:
@@ -400,21 +291,6 @@ def recalculate_all(db: Session) -> PlayerProfile:
     player.total_xp = sum(s.xp for s in stats.values())
     player.level = _level_from_xp(player.total_xp)
 
-    # Добавляем XP за уже разблокированные достижения (чтобы не потерять при пересчёте)
-    existing_unlocks = db.query(UnlockedAchievementModel).all()
-    for ua in existing_unlocks:
-        ach_def = db.query(AchievementDefModel).filter(
-            AchievementDefModel.code == ua.achievement_code
-        ).first()
-        if ach_def:
-            player.total_xp += ach_def.xp_reward
-            if ach_def.stat_key and ach_def.stat_key in stats:
-                stats[ach_def.stat_key].xp += ach_def.xp_reward
-                stats[ach_def.stat_key].level = _stat_level_from_xp(stats[ach_def.stat_key].xp)
-
-    # Пересчитываем уровни после добавления XP достижений
-    player.level = _level_from_xp(player.total_xp)
-
     db.commit()
 
     return get_profile(db)
@@ -430,7 +306,7 @@ def _add_stat_xp(stats: dict, key: str, amount: int):
 
 def reset_profile(db: Session) -> PlayerProfile:
     """
-    Полный сброс профиля: XP, уровни, статы, достижения.
+    Полный сброс профиля: XP, уровни, статы.
     Используется для очистки тестовых данных.
     """
     # Сброс игрока
@@ -443,9 +319,6 @@ def reset_profile(db: Session) -> PlayerProfile:
     for stat in db.query(StatModel).all():
         stat.xp = 0
         stat.level = 1
-
-    # Удаление разблокированных достижений
-    db.query(UnlockedAchievementModel).delete()
 
     db.commit()
     return get_profile(db)

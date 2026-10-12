@@ -20,11 +20,14 @@ def _task_out(t: TaskModel) -> Task:
         duration_minutes=t.duration_minutes,
         order_index=t.order_index,
         date=t.date,
-        routine_id=t.routine_id
+        routine_id=t.routine_id,
+        recurring_id=t.recurring_id
     )
 
 
 def get_tasks_by_date(db: Session, target_date: date) -> list[Task]:
+    import recurring_db
+    recurring_db.materialize(db, target_date)
     tasks = db.query(TaskModel).filter(TaskModel.date == target_date).all()
     return [_task_out(t) for t in tasks]
 
@@ -47,7 +50,8 @@ def create_task(db: Session, task: Task) -> Task:
         duration_minutes=task.duration_minutes,
         order_index=task.order_index,
         date=task.date,
-        routine_id=task.routine_id
+        routine_id=task.routine_id,
+        recurring_id=task.recurring_id
     )
     db.add(db_task)
     db.commit()
