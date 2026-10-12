@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional, Literal
 from achievements_models import MetaModel
@@ -7,12 +7,17 @@ from database import get_db
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
-KEYS = {"theme": "setting_theme", "planner_mode": "setting_planner_mode"}
+KEYS = {
+    "theme": "setting_theme",
+    "planner_mode": "setting_planner_mode",
+    "dashboard_layout": "setting_dashboard_layout",
+}
 
 
 class Settings(BaseModel):
     theme: Optional[Literal["light", "dark"]] = None
     planner_mode: Optional[Literal["full", "free", "mixed"]] = None
+    dashboard_layout: Optional[str] = Field(default=None, max_length=8000)  # JSON раскладки дашборда
 
 
 def _read(db: Session) -> Settings:

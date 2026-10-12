@@ -25,7 +25,7 @@ class MetaModel(Base):
     __tablename__ = "app_meta"
 
     key = Column(String(50), primary_key=True)
-    value = Column(String(200), nullable=True)
+    value = Column(Text, nullable=True)
 
 
 class Achievement(BaseModel):
