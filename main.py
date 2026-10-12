@@ -17,7 +17,7 @@ from habits_models import HabitModel, CheckModel, RelapseModel
 from workouts_models import WorkoutModel, ExerciseModel, UserProfileModel, RoutineModel, RoutineExerciseModel
 from finance_models import TransactionModel, DebtModel
 from profile_models import PlayerModel, StatModel
-from roadmap_models import RoadmapModel, RoadmapStepModel
+from roadmap_models import RoadmapModel, RoadmapStepModel, RoadmapEdgeModel
 from goals_models import GoalModel
 from achievements_models import AchievementModel
 from recurring_models import RecurringTaskModel, RecurringGeneratedModel
@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI):
     try:
         workouts_db.ensure_default_routine(migration_db)
         roadmap_db.ensure_step_layout(migration_db)
+        roadmap_db.migrate_parents_to_edges(migration_db)
         achievements_db.import_legacy_unlocked(migration_db)
     finally:
         migration_db.close()
@@ -84,7 +85,7 @@ def reset_all(session: Session = Depends(get_db)):
         WorkoutModel, RoutineExerciseModel, ExerciseModel, RoutineModel, UserProfileModel,
         TransactionModel, DebtModel,
         StatModel, PlayerModel,
-        RoadmapStepModel, RoadmapModel, GoalModel, AchievementModel, RecurringGeneratedModel, RecurringTaskModel,
+        RoadmapEdgeModel, RoadmapStepModel, RoadmapModel, GoalModel, AchievementModel, RecurringGeneratedModel, RecurringTaskModel,
     ):
         session.query(model).delete()
     session.commit()

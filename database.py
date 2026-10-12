@@ -91,7 +91,7 @@ async def init_db():
     from workouts_models import WorkoutModel, ExerciseModel, UserProfileModel
     from finance_models import TransactionModel, DebtModel
     from profile_models import PlayerModel, StatModel
-    from roadmap_models import RoadmapModel, RoadmapStepModel
+    from roadmap_models import RoadmapModel, RoadmapStepModel, RoadmapEdgeModel
     from goals_models import GoalModel
     from achievements_models import AchievementModel, MetaModel
     from recurring_models import RecurringTaskModel, RecurringGeneratedModel
@@ -111,7 +111,7 @@ def _sync_init_db():
     from workouts_models import WorkoutModel, ExerciseModel, UserProfileModel
     from finance_models import TransactionModel, DebtModel
     from profile_models import PlayerModel, StatModel
-    from roadmap_models import RoadmapModel, RoadmapStepModel
+    from roadmap_models import RoadmapModel, RoadmapStepModel, RoadmapEdgeModel
     from goals_models import GoalModel
     from achievements_models import AchievementModel, MetaModel
     from recurring_models import RecurringTaskModel, RecurringGeneratedModel
@@ -257,6 +257,7 @@ def _add_missing_columns():
             ('roadmap_steps', 'y', 'FLOAT'),
             ('roadmap_steps', 'parent_step_id', 'VARCHAR(36)'),
             ('roadmap_steps', 'done', 'BOOLEAN DEFAULT FALSE'),
+            ('roadmap_steps', 'color', 'VARCHAR(20)'),
         ):
             if table in inspector.get_table_names():
                 existing = [c['name'] for c in inspector.get_columns(table)]

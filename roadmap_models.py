@@ -30,6 +30,17 @@ class RoadmapStepModel(Base):
     y = Column(Float, nullable=True)
     parent_step_id = Column(String, nullable=True)  # от какого узла идёт связь
     done = Column(Boolean, default=False)
+    color = Column(String(20), nullable=True)  # цвет узла на холсте
+
+
+class RoadmapEdgeModel(Base):
+    """Связь (стрелка) между двумя этапами: from_id -> to_id"""
+    __tablename__ = "roadmap_edges"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    roadmap_id = Column(String, nullable=False)
+    from_id = Column(String, nullable=False)
+    to_id = Column(String, nullable=False)
 
 
 # ── Pydantic схемы для API ──
@@ -40,8 +51,17 @@ class RoadmapStep(BaseModel):
     position: int = 0
     x: float = 0
     y: float = 0
-    parent_step_id: Optional[str] = None
     done: bool = False
+    color: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class RoadmapEdge(BaseModel):
+    id: str
+    from_id: str
+    to_id: str
 
     class Config:
         from_attributes = True
@@ -54,6 +74,7 @@ class Roadmap(BaseModel):
     current_step_id: Optional[str] = None
     goal_id: Optional[str] = None
     steps: List[RoadmapStep] = []
+    edges: List[RoadmapEdge] = []
 
     class Config:
         from_attributes = True
@@ -70,9 +91,10 @@ class RoadmapUpdate(BaseModel):
 
 class RoadmapStepCreate(BaseModel):
     label: str
-    parent_step_id: Optional[str] = None
+    parent_step_id: Optional[str] = None  # если задан — сразу создаётся связь parent -> новый этап
     x: Optional[float] = None
     y: Optional[float] = None
+    color: Optional[str] = None
 
 
 class RoadmapStepUpdate(BaseModel):
@@ -80,5 +102,10 @@ class RoadmapStepUpdate(BaseModel):
     position: Optional[int] = None
     x: Optional[float] = None
     y: Optional[float] = None
-    parent_step_id: Optional[str] = None
     done: Optional[bool] = None
+    color: Optional[str] = None
+
+
+class RoadmapEdgeCreate(BaseModel):
+    from_id: str
+    to_id: str
